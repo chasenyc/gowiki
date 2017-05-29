@@ -11,36 +11,8 @@ import (
     "fmt"
 )
 
-type Page struct {
-    Title string
-    Body  []byte
-    Tags  []string
-}
-
-func (p Page) ConvertedBody() template.HTML {
-    search := regexp.MustCompile("\\[([a-zA-Z]+)\\]")
-
-    body := search.ReplaceAllFunc(p.Body, func(s []byte) []byte {
-        m := string(s[1 : len(s)-1])
-        return []byte("<a href=\"/view/" + m + "\">" + m + "</a>")
-    })
-
-    return template.HTML(string(body[:]))
-}
-
 var templates = template.Must(template.ParseFiles("tmpl/edit.html", "tmpl/view.html"))
 var validPath = regexp.MustCompile("^/(edit|save|view)/([a-zA-Z0-9]+)$")
-
-func (p *Page) save() (info *mgo.ChangeInfo, err error) {
-    session, _ := mgo.Dial(getMongo())
-    defer session.Close()
-
-    session.SetMode(mgo.Monotonic, true)
-
-    c := session.DB("testwiki").C("pages")
-
-    return c.Upsert(bson.M{"title": p.Title}, p)
-}
 
 func writeFile(filename string, body []byte) (err error) {
     return ioutil.WriteFile("data/" + filename, body, 0600)
@@ -62,14 +34,7 @@ func loadPage(title string) (*Page, error) {
     if err != nil {
         return nil, err
     }
-    return &Page{Title: result.Title, Body: result.Body}, nil
-
-    // filename := title + ".txt"
-    // body, err := readFile(filename)
-    // if err != nil {
-    //     return nil, err
-    // }
-    // return &Page{Title: title, Body: body}, nil
+    return &Page{Title: result.Title, Body: result.Body, Timestamp: result.Timestamp}, nil
 }
 
 func viewHandler(w http.ResponseWriter, r *http.Request, title string) {

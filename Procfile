@@ -1,1 +1,1 @@
-web: gowiki
+web: gowiki models
