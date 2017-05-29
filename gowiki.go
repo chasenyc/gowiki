@@ -24,6 +24,11 @@ func readFile(filename string) (text []byte, err error) {
 
 func loadPage(title string) (*Page, error) {
     session, err := mgo.Dial(getMongo())
+
+    if err != nil {
+        return nil, err
+    }
+
     defer session.Close()
 
     // Optional. Switch the session to a monotonic behavior.
@@ -31,6 +36,7 @@ func loadPage(title string) (*Page, error) {
     c := session.DB("testwiki").C("pages")
     result := Page{}
     err = c.Find(bson.M{"title": title}).One(&result)
+
     if err != nil {
         return nil, err
     }
