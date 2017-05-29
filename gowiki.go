@@ -2,25 +2,17 @@ package main
 
 import (
     "html/template"
-	"io/ioutil"
     "net/http"
     "regexp"
     "gopkg.in/mgo.v2"
     "gopkg.in/mgo.v2/bson"
     "os"
     "fmt"
+    "strings"
 )
 
 var templates = template.Must(template.ParseFiles("tmpl/edit.html", "tmpl/view.html"))
 var validPath = regexp.MustCompile("^/(edit|save|view)/([a-zA-Z0-9]+)$")
-
-func writeFile(filename string, body []byte) (err error) {
-    return ioutil.WriteFile("data/" + filename, body, 0600)
-}
-
-func readFile(filename string) (text []byte, err error) {
-    return ioutil.ReadFile("data/" + filename)
-}
 
 func loadPage(title string) (*Page, error) {
     session, err := mgo.Dial(getMongo())
@@ -40,7 +32,7 @@ func loadPage(title string) (*Page, error) {
     if err != nil {
         return nil, err
     }
-    return &Page{Title: result.Title, Body: result.Body, Timestamp: result.Timestamp}, nil
+    return &Page{Title: result.Title, Body: result.Body, Tags: result.Tags, Timestamp: result.Timestamp}, nil
 }
 
 func viewHandler(w http.ResponseWriter, r *http.Request, title string) {
@@ -62,7 +54,9 @@ func editHandler(w http.ResponseWriter, r *http.Request, title string) {
 
 func saveHandler(w http.ResponseWriter, r *http.Request, title string) {
     body := r.FormValue("body")
-    p := &Page{Title: title, Body: []byte(body)}
+    tagsRaw := r.FormValue("tags")
+    tags := strings.Split(tagsRaw, ", ")
+    p := &Page{Title: title, Body: []byte(body), Tags: tags}
     _, err := p.save()
     if err != nil {
         http.Error(w, err.Error(), http.StatusInternalServerError)

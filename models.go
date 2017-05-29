@@ -6,7 +6,7 @@ import (
     "gopkg.in/mgo.v2"
     "gopkg.in/mgo.v2/bson"
     "time"
-    "fmt"
+    "strings"
 )
 
 type Page struct {
@@ -15,6 +15,8 @@ type Page struct {
     Tags  []string
     Timestamp time.Time
 }
+
+const layout = "Jan 2, 2006 at 3:04pm (MST)"
 
 func (p Page) ConvertedBody() template.HTML {
     search := regexp.MustCompile("\\[([a-zA-Z]+)\\]")
@@ -28,15 +30,17 @@ func (p Page) ConvertedBody() template.HTML {
 }
 
 func (p Page) ConvertedTime() template.HTML {
-    const layout = "Jan 2, 2006 at 3:04pm (MST)"
     return template.HTML(p.Timestamp.Format(layout))
+}
+
+func (p Page) ConvertedTags() template.HTML {
+    return template.HTML(strings.Join(p.Tags, ", "))
 }
 
 func (p *Page) save() (info *mgo.ChangeInfo, err error) {
     session, _ := mgo.Dial(getMongo())
     defer session.Close()
     p.Timestamp = time.Now()
-    fmt.Println(p.Timestamp.String())
     session.SetMode(mgo.Monotonic, true)
 
     c := session.DB("testwiki").C("pages")
