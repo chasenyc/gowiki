@@ -11,12 +11,12 @@ import (
     "strings"
 )
 
-var templates = template.Must(template.ParseFiles("tmpl/edit.html", "tmpl/view.html"))
-var validPath = regexp.MustCompile("^/(edit|save|view)/([a-zA-Z0-9]+)$")
+var pageTemplates = template.Must(template.ParseFiles("tmpl/page/edit.html", "tmpl/page/view.html"))
+var tagsTemplates = template.Must(template.ParseFiles("tmpl/tags/tags.html"))
+var validPath = regexp.MustCompile("^/(edit|save|view|tags)/([a-zA-Z0-9]+)$")
 
 func loadPage(title string) (*Page, error) {
     session, err := mgo.Dial(getMongo())
-
     if err != nil {
         return nil, err
     }
@@ -66,7 +66,7 @@ func saveHandler(w http.ResponseWriter, r *http.Request, title string) {
 }
 
 func renderTemplate(w http.ResponseWriter, tmpl string, p *Page) {
-    err := templates.ExecuteTemplate(w, tmpl+".html", p)
+    err := pageTemplates.ExecuteTemplate(w, tmpl+".html", p)
     if err != nil {
         http.Error(w, err.Error(), http.StatusInternalServerError)
     }
@@ -91,8 +91,43 @@ func main() {
     http.HandleFunc("/view/", makeHandler(viewHandler))
     http.HandleFunc("/edit/", makeHandler(editHandler))
     http.HandleFunc("/save/", makeHandler(saveHandler))
+    http.HandleFunc("/tags/", makeHandler(tagHandler))
     http.HandleFunc("/", redirectFront)
     http.ListenAndServe(getPort(), nil)
+}
+
+func tagHandler(w http.ResponseWriter, r *http.Request, title string) {
+    tags, err := loadTags()
+    fmt.Println("got tags.")
+    if err != nil {
+        redirectFront(w, r)
+        return
+    }
+
+    errTwo := tagsTemplates.ExecuteTemplate(w, "tags.html", tags)
+    if errTwo != nil {
+        http.Error(w, err.Error(), http.StatusInternalServerError)
+    }
+}
+
+func loadTags() ([]string, error) {
+    session, err := mgo.Dial(getMongo())
+    if err != nil {
+        return nil, err
+    }
+
+    defer session.Close()
+
+    // Optional. Switch the session to a monotonic behavior.
+    session.SetMode(mgo.Monotonic, true)
+    c := session.DB("testwiki").C("pages")
+    result := []string{}
+    err = c.Find(nil).Distinct("tags", &result)
+
+    if err != nil {
+        return nil, err
+    }
+    return result, nil
 }
 
 // Get the Port from the environment so we can run on Heroku
